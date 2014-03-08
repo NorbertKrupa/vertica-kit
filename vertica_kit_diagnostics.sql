@@ -1,7 +1,7 @@
 -- Vertica Diagnostic Information Queries
--- February 2014
+-- March 2014
 --
--- Last Modified: February 16, 2014
+-- Last Modified: March 8, 2014
 -- http://www.jadito.us
 -- Twitter: justadayito
 --
@@ -32,20 +32,28 @@
 SELECT version();
 
 -- Your license and compliance status
--- https://my.vertica.com/docs/6.0.x/HTML/index.htm#15460.htm
--- https://my.vertica.com/docs/6.0.x/HTML/index.htm#15563.htm
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15460.htm
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15563.htm
 SELECT DISPLAY_LICENSE();
 SELECT GET_COMPLIANCE_STATUS();
 
 -- Is the Data Collector enabled (for monitoring)
--- https://my.vertica.com/docs/6.0.x/HTML/index.htm#16138.htm
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#16138.htm
 SELECT GET_CONFIG_PARAMETER('EnableDataCollector');
 
--- Profiling configuration (Session, Query, Execution Engine)
--- If any profile configurations are enabled, they may be using memory
--- https://my.vertica.com/docs/6.0.x/HTML/index.htm#10300.htm
--- To disable: https://my.vertica.com/docs/6.0.x/HTML/index.htm#14373.htm
-SELECT SHOW_PROFILING_CONFIG();
+-- Configuration parameters that have been modified
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12772.htm
+SELECT /*+label(diag_changed_config_param)*/ 
+       * 
+FROM   v_monitor.configuration_parameters 
+WHERE  current_value <> default_value; 
+
+-- Shows change history of configuration parameters
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17542.htm
+SELECT /*+label(diag_config_param_history)*/ 
+       * 
+FROM   v_monitor.configuration_changes 
+ORDER  BY event_timestamp DESC; 
 
 --*************************************************************************
 --  Resource Information
@@ -53,30 +61,34 @@ SELECT SHOW_PROFILING_CONFIG();
 
 -- Shows disk space utilization by host (see below for alternate methods)
 -- http://wp.me/p3Qalh-fs
-SELECT host_name, 
+SELECT /*+label(diag_disk_space_utilization)*/ 
+       host_name, 
        ( disk_space_free_mb / 1024 )  AS disk_space_free_gb, 
        ( disk_space_used_mb / 1024 )  AS disk_space_used_gb, 
        ( disk_space_total_mb / 1024 ) AS disk_space_total_gb 
 FROM   v_monitor.host_resources;
 
 -- Shows processor information by host
-SELECT host_name, 
+SELECT /*+label(diag_cpu_info)*/ 
+       host_name, 
        processor_count, 
        processor_core_count, 
        processor_description 
 FROM   v_monitor.host_resources;
 
 -- Shows memory information by host
-SELECT host_name, 
+SELECT /*+label(diag_memory_info)*/ 
+       host_name, 
        total_memory_bytes / ( 1024^3 )           AS total_memory_gb, 
        total_memory_free_bytes / ( 1024^3 )      AS total_memory_free_gb, 
        total_swap_memory_bytes / ( 1024^3 )      AS total_swap_memory_gb, 
        total_swap_memory_free_bytes / ( 1024^3 ) AS total_swap_memory_free_gb 
 FROM   v_monitor.host_resources;
 
--- Shows compressed and raw estimate space utilization by schema
+-- Shows compressed and raw estimate data space utilization by schema
 -- http://wp.me/p3Qalh-jA
-SELECT ps.anchor_table_schema, 
+SELECT /*+label(diag_schema_space_utilization)*/ 
+       ps.anchor_table_schema, 
        ps.used_compressed_gb, 
        ps.used_compressed_gb * la.ratio AS raw_estimate_gb 
 FROM   (SELECT anchor_table_schema, 
@@ -97,7 +109,8 @@ ORDER  BY ps.used_compressed_gb DESC;
 
 -- Distribution of query request times (see below for identifying slow queries)
 -- http://wp.me/p3Qalh-ir
-SELECT SUM(CASE 
+SELECT /*+label(diag_query_time_distribution)*/ 
+       SUM(CASE 
              WHEN request_duration_ms <= 1000 THEN 1 
              ELSE 0 
            END) AS less_than_1, 
@@ -123,22 +136,65 @@ SELECT SUM(CASE
            END) AS greater_than_5 
 FROM   v_internal.query_requests;
 
+-- Shows possible issues with planning of execution of a query; specifically 
+-- looking for event types such as GROUP_BY_SPILLED and JOIN_SPILLED
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#20263.htm
+SELECT /*+label(diag_query_events)*/ 
+       event_timestamp, 
+       session_id, 
+       transaction_id, 
+       event_description, 
+       event_type 
+FROM   v_monitor.query_events 
+ORDER  BY event_timestamp DESC; 
+
 -- Shows projections that haven't been refreshed in the past 3 months 
 -- or do not have a corresponding refresh
--- https://my.vertica.com/docs/6.0.x/HTML/index.htm#13905.htm
-SELECT p.projection_schema, 
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13905.htm
+SELECT /*+label(diag_stale_projections)*/ 
+       p.projection_schema, 
        p.projection_name, 
-       DATEDIFF(day, refresh_start, SYSDATE()) AS days_last_refresh 
+       DATEDIFF(day, pr.refresh_start, SYSDATE()) AS days_last_refresh 
 FROM   v_catalog.projections p 
        LEFT JOIN v_monitor.projection_refreshes pr 
               ON pr.projection_id = p.projection_id 
-WHERE  DATEDIFF(month, refresh_start, SYSDATE()) >= 3 
+WHERE  DATEDIFF(month, pr.refresh_start, SYSDATE()) >= 3 
         OR pr.projection_id IS NULL 
-ORDER  BY DATEDIFF(day, refresh_start, SYSDATE()) DESC;
+ORDER  BY days_last_refresh DESC;
+
+-- Shows projection columns that haven't been refreshed in the past month
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15576.htm
+SELECT /*+label(diag_stale_projection_columns)*/ 
+       projection_id, 
+       projection_name, 
+       projection_column_name, 
+       statistics_type, 
+       DATEDIFF(day, statistics_updated_timestamp, SYSDATE()) AS days_last_refresh 
+FROM   v_catalog.projection_columns 
+WHERE  DATEDIFF(month, statistics_updated_timestamp, SYSDATE()) >= 1
+ORDER  BY days_last_refresh DESC;
+
+-- Shows projections which do not have full statistics; with tuning command;
+-- only looking for statistics_type of NONE or ROWCOUNT. NONE means no statistics;
+-- ROWCOUNT means created automatically from existing catalog metadata
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15574.htm
+SELECT /*+label(diag_unrefreshed_columns)*/ 
+       pc.projection_name, 
+       pc.table_name, 
+       pc.table_column_name, 
+       pc.statistics_type, 
+       E'SELECT /*+label(update_statistics)*/ ANALYZE_STATISTICS(\'' 
+         || pc.table_name || '.' || pc.table_column_name || E'\');' AS tuning_command
+FROM   v_catalog.projections p 
+       JOIN v_catalog.projection_columns pc 
+         ON pc.projection_id = p.projection_id 
+WHERE  p.has_statistics = 'f' 
+       AND pc.statistics_type IN ( 'NONE', 'ROWCOUNT' );
 
 -- Shows any load events that had rejected rows
 -- See also: https://my.vertica.com/docs/6.1.x/HTML/index.htm#12261.htm
-SELECT le.time, 
+SELECT /*+label(diag_rejected_load_rows)*/
+       le.time, 
        le.node_name, 
        le.event_description, 
        le.event_type, 
@@ -157,7 +213,8 @@ ORDER  BY le.time DESC;
 
 -- Shows any query requests with errors (truncated request text)
 -- http://wp.me/p3Qalh-iV
-SELECT qr.node_name, 
+SELECT /*+label(diag_query_errors)*/
+       qr.node_name, 
        qr.user_name, 
        qr.session_id, 
        qr.start_timestamp, 
@@ -175,3 +232,34 @@ FROM   v_monitor.query_requests qr
             AND em.request_id = qr.request_id 
             AND em.transaction_id = qr.transaction_id 
 ORDER  BY qr.start_timestamp DESC;
+
+--*************************************************************************
+--  Query Profiling Information
+--*************************************************************************
+
+-- Examining actual time spent in query
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10300.htm
+-- Profiling configuration: if any configs are enabled, and you're not 
+-- performing profiling, it may be using memory
+-- To disable: https://my.vertica.com/docs/6.1.x/HTML/index.htm#14373.htm
+SELECT SHOW_PROFILING_CONFIG();
+
+-- Clear previous profiling data
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10305.htm
+SELECT CLEAR_PROFILING('query');
+
+-- Enable query profiling and allow to run for sufficient period of time; 
+-- disable when not in use
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13914.htm
+SELECT SET_CONFIG_PARAMETER('GlobalQueryProfiling', 1);
+
+-- Examine query_profiles; shows 50 longest running queries
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10304.htm
+SELECT /*+label(diag_long_running_queries)*/ 
+       LEFT(REGEXP_REPLACE(query, '[\r\t\f\n]', ' '), 100) AS query, 
+       COUNT(*)                                            AS instances, 
+       AVG(query_duration_us)                              AS avg_query_duration_us 
+FROM   v_monitor.query_profiles 
+GROUP  BY query 
+ORDER  BY avg_query_duration_us DESC 
+LIMIT 50;
