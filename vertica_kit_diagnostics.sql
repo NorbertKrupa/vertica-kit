@@ -1,7 +1,7 @@
 -- Vertica Diagnostic Information Queries
--- March 2014
+-- April 2014
 --
--- Last Modified: March 8, 2014
+-- Last Modified: April 8, 2014
 -- http://www.jadito.us
 -- Twitter: justadayito
 --
@@ -55,6 +55,14 @@ SELECT /*+label(diag_config_param_history)*/
 FROM   v_monitor.configuration_changes 
 ORDER  BY event_timestamp DESC; 
 
+-- Shows current fault tolerance of the system by returning K-safety 
+-- level and number of node failures before automatic shut down
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12275.htm
+SELECT /*+label(diag_fault_tolerance)*/ 
+       designed_fault_tolerance, 
+       current_fault_tolerance 
+FROM   v_monitor.system;
+
 --*************************************************************************
 --  Resource Information
 --*************************************************************************
@@ -88,20 +96,22 @@ FROM   v_monitor.host_resources;
 -- Shows compressed and raw estimate data space utilization by schema
 -- http://wp.me/p3Qalh-jA
 SELECT /*+label(diag_schema_space_utilization)*/ 
-       ps.anchor_table_schema, 
-       ps.used_compressed_gb, 
-       ps.used_compressed_gb * la.ratio AS raw_estimate_gb 
-FROM   (SELECT anchor_table_schema, 
+       pj.anchor_table_schema, 
+       pj.used_compressed_gb, 
+       pj.used_compressed_gb * la.ratio AS raw_estimate_gb 
+FROM   (SELECT ps.anchor_table_schema, 
                SUM(used_bytes) / ( 1024^3 ) AS used_compressed_gb 
-        FROM   v_monitor.projection_storage 
-        GROUP  BY anchor_table_schema 
-        ORDER  BY SUM(used_bytes) DESC) ps 
-CROSS JOIN (SELECT (SELECT database_size_bytes 
-                   FROM   v_catalog.license_audits 
-                   ORDER  BY audit_start_timestamp DESC 
-                   LIMIT  1) / (SELECT SUM(used_bytes) 
-                                FROM   v_monitor.projection_storage) AS ratio) la
-ORDER  BY ps.used_compressed_gb DESC;
+        FROM   v_catalog.projections p 
+               JOIN v_monitor.projection_storage ps 
+                 ON ps.projection_id = p.projection_id 
+        WHERE  p.is_super_projection = 't' 
+        GROUP  BY ps.anchor_table_schema) pj 
+       CROSS JOIN (SELECT (SELECT database_size_bytes 
+                           FROM   v_catalog.license_audits 
+                           ORDER  BY audit_start_timestamp DESC 
+                           LIMIT  1) / (SELECT SUM(used_bytes) 
+                                        FROM   v_monitor.projection_storage) AS ratio) la 
+ORDER  BY pj.used_compressed_gb DESC; 
 
 --*************************************************************************
 --  Diagnostic Information
@@ -147,6 +157,54 @@ SELECT /*+label(diag_query_events)*/
        event_type 
 FROM   v_monitor.query_events 
 ORDER  BY event_timestamp DESC; 
+
+-- Shows overview of event types
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17580.htm
+SELECT /*+label(diag_query_event_types)*/
+       event_type, 
+       COUNT(*) 
+FROM   query_events 
+GROUP  BY event_type 
+ORDER  BY COUNT(*) DESC; 
+
+-- Shows queries that spilled to disk during execution; the query
+-- should be optimized for a merge join or group by pipelined
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12525.htm
+SELECT /*+label(diag_query_event_types)*/
+       DISTINCT qr.start_timestamp, 
+                qe.event_type, 
+                REGEXP_REPLACE(qr.request, '[\r\t\f\n]', ' ') AS request 
+FROM   v_monitor.query_events qe 
+       JOIN v_monitor.query_requests qr 
+         ON qr.transaction_id = qe.transaction_id 
+            AND qr.statement_id = qe.statement_id 
+WHERE  qe.event_type IN ( 'GROUP_BY_SPILLED', 'JOIN_SPILLED' ) 
+       AND qr.request_type = 'QUERY' 
+ORDER  BY qr.start_timestamp; 
+
+-- Shows query events in which rows were resegmented during execution
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12174.htm
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10248.htm
+SELECT /*+label(diag_query_events_resegment)*/ 
+       DISTINCT qr.start_timestamp, 
+                REGEXP_REPLACE(qr.request, '[\r\t\f\n]', ' ') AS request 
+FROM   v_monitor.query_events qe 
+       JOIN v_monitor.query_requests qr 
+         ON qr.transaction_id = qe.transaction_id 
+            AND qr.statement_id = qe.statement_id 
+WHERE  qe.event_type = 'RESEGMENTED_MANY_ROWS' 
+       AND qr.request_type = 'QUERY' 
+ORDER  BY qr.start_timestamp;
+
+-- Shows possible data skew in segmented projections; note: Workload
+-- Analyzer should be run to obtain the most recent recommendations
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17426.htm
+SELECT /*+label(diag_workload_resegment)*/
+       tuning_description, 
+       tuning_cost 
+FROM   v_monitor.tuning_recommendations 
+WHERE  tuning_description LIKE 're-segment%'
+ORDER  BY tuning_description;
 
 -- Shows projections that haven't been refreshed in the past 3 months 
 -- or do not have a corresponding refresh
@@ -233,6 +291,14 @@ FROM   v_monitor.query_requests qr
             AND em.transaction_id = qr.transaction_id 
 ORDER  BY qr.start_timestamp DESC;
 
+-- Shows the last run and interval for each service on each ndoe
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17588.htm
+SELECT /*+label(diag_system_services)*/
+       * 
+FROM   v_monitor.system_services 
+ORDER  BY node_name, 
+          last_run_start;
+
 --*************************************************************************
 --  Query Profiling Information
 --*************************************************************************
@@ -248,10 +314,11 @@ SELECT SHOW_PROFILING_CONFIG();
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10305.htm
 SELECT CLEAR_PROFILING('query');
 
--- Enable query profiling and allow to run for sufficient period of time; 
--- disable when not in use
+-- Session and global profiling should be enabled as they will be capped by data
+-- collector policies; execution engine profiling should be used sparsely and briefly
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13914.htm
 SELECT SET_CONFIG_PARAMETER('GlobalQueryProfiling', 1);
+SELECT SET_CONFIG_PARAMETER('GlobalSessionProfiling', 1);
 
 -- Examine query_profiles; shows 50 longest running queries
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10304.htm
