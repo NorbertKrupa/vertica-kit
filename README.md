@@ -4,18 +4,17 @@ It's my goal to create a kit that contains essential queries and resources for a
 ## Vertica Diagnostic Queries
 The goal of these queries is to provide as much information as possible covering monitoring, diagnostics and performance tuning. This idea is heavily inspired by [Glenn Barry's](http://www.sqlskills.com/blogs/glenn/category/dmv-queries/) SQL Server diagnostic queries and [Ola Hallengren's](http://ola.hallengren.com/) SQL Server maintenance solution.
 
-The April 2014 release has the following changes:
-* Modified raw estimate data space utilization to only include super projections
-* Removed suggestion to disable global profiling when not in use
+The May 2014 release has the following changes:
+* Fixed schema for query_requests for query time distribution
 * Adds 6 queries
- * Fault tolerance of system by returning K-safety level and number of node failures before automatic shut down
- * Overview of event types
- * Queries that spilled to disk during execution
- * Query events in which rows were resegmented during execution
- * Possible data skew in segmented projections
- * Last run and interval for each service on each node
+ * Nodes with less than recommended disk space available (40%)
+ * Workload analyzer tuning rules
+ * Tables without primary keys (help with optimizing joins)
+ * Percentage of database that has been deleted
+ * Denied resource requests (identify resource space and pool issues)
+ * Projection last used timestamp (identify unused projections)
 
-It contains 26 queries over 4 sections and covers the following:
+It contains 32 queries over 4 sections and covers the following:
 
 * Configuration Information (6)
  * Product Version
@@ -24,12 +23,13 @@ It contains 26 queries over 4 sections and covers the following:
  * Changed Configuration Parameters
  * Configuration Change History
  * Fault Tolerance
-* Resource Information (4)
+* Resource Information (5)
  * Disk Space Utilization by Host
  * Processor Information by Host
  * Memory Information by Host
  * Compressed and Raw Estimate Data Space Usage by Schema
-* Diagnostic Information (12)
+ * Disk Space Warning
+* Diagnostic Information (17)
  * Distribution of Query Request Times
  * Proactively Examining Query Events
  * Overview of Query Event Types
@@ -42,6 +42,11 @@ It contains 26 queries over 4 sections and covers the following:
  * Load Events with Rejected Rows
  * Query Requests with Errors
  * Service Intervals and Last Run
+ * Workload Analyzer Tuning Rules
+ * Possible Missing Primary Keys
+ * Deleted Database Date
+ * Denied Resource Requests
+ * Unused Projections
 * Query Profiling Information (4)
  * Profiling Configuration
  * Clearing Profile Data

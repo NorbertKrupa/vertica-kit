@@ -1,7 +1,8 @@
 -- Vertica Diagnostic Information Queries
--- April 2014
+-- May 2014
 --
--- Last Modified: April 8, 2014
+-- Last Modified: May 16, 2014
+-- http://www.vertica.tips
 -- http://www.jadito.us
 -- Twitter: justadayito
 --
@@ -113,6 +114,16 @@ FROM   (SELECT ps.anchor_table_schema,
                                         FROM   v_monitor.projection_storage) AS ratio) la 
 ORDER  BY pj.used_compressed_gb DESC; 
 
+-- Shows nodes that have less than the recommended disk space (40%) available for use
+-- http://goo.gl/I4kCmk
+SELECT /*+label()*/
+       node_name, 
+       storage_path, 
+       disk_space_free_percent 
+FROM   v_monitor.disk_storage 
+WHERE  disk_space_free_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4 
+       AND storage_usage = 'DATA,TEMP';
+
 --*************************************************************************
 --  Diagnostic Information
 --*************************************************************************
@@ -144,7 +155,7 @@ SELECT /*+label(diag_query_time_distribution)*/
              WHEN request_duration_ms > 5000 THEN 1 
              ELSE 0 
            END) AS greater_than_5 
-FROM   v_monitor.query_requests;
+FROM   v_internal.query_requests;
 
 -- Shows possible issues with planning of execution of a query; specifically 
 -- looking for event types such as GROUP_BY_SPILLED and JOIN_SPILLED
@@ -298,6 +309,50 @@ SELECT /*+label(diag_system_services)*/
 FROM   v_monitor.system_services 
 ORDER  BY node_name, 
           last_run_start;
+
+-- Shows Workload Analyzer tuning rules
+-- http://www.vertica.com/2014/05/06/inside-the-secret-world-of-the-workload-analyzer/
+SELECT /*+label(diag_wla_tuning_params)*/
+       * 
+FROM   v_internal.vs_tuning_rule_parameters;
+
+-- Shows tables without primary keys
+-- http://vertica.tips/2014/03/29/hash-join-operator/
+SELECT /*+label(diag_tables_without_pk)*/
+       DISTINCT t.table_schema, 
+                t.table_name 
+FROM   v_catalog.tables t 
+       LEFT JOIN v_catalog.constraint_columns cc 
+              ON cc.table_id = t.table_id 
+WHERE  cc.constraint_type <> 'p' 
+ORDER  BY t.table_schema, 
+          t.table_name; 
+
+-- Shows percentage of database that has been deleted
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12704_1.htm
+SELECT /*+label(diag_database_deleted_data)*/ 
+      (SELECT SUM(used_bytes) 
+        FROM   v_monitor.delete_vectors) / (SELECT SUM(ros_used_bytes) 
+                                            FROM   v_monitor.projection_storage) * 100 AS percent;
+
+-- Shows denied resource requests (useful for identifying resource space and pool issues)
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15239_1.htm
+SELECT /*+label(diag_denied_resource_req)*/ 
+       reason, 
+       COUNT(*) 
+FROM   v_monitor.resource_rejection_details 
+GROUP  BY reason;
+
+-- Shows projection last used timestamp to identify unused projections
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17579.htm
+SELECT /*+label(diag_unused_projectiosn)*/ 
+       projection_name, 
+       MIN(query_start_timestamp) AS last_used_timestamp 
+FROM   v_monitor.projection_usage 
+GROUP  BY projection_name, 
+          query_start_timestamp 
+ORDER  BY query_start_timestamp 
+LIMIT  30;
 
 --*************************************************************************
 --  Query Profiling Information
