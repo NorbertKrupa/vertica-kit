@@ -54,7 +54,7 @@ It contains 32 queries over 4 sections and covers the following:
  * Examining Query Profiles
 
 ## Other Resources
-Doug Harmon has his own [Vertical SQL Toolbelt](https://github.com/DougHarmon/v-sql-tb) that contains shell scripts and other helpful diagnostic queries.
+Doug Harmon has his own [Vertica SQL Toolbelt](https://github.com/DougHarmon/v-sql-tb) that contains shell scripts and other helpful diagnostic queries.
 
 The unofficial [Vertica forums](http://www.vertica-forums.com) have some great people helping out the Vertica community.
 
