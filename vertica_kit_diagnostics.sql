@@ -1,7 +1,7 @@
 -- Vertica Diagnostic Information Queries
--- May 2014
+-- June 2014
 --
--- Last Modified: May 16, 2014
+-- Last Modified: June 15, 2014
 -- http://www.vertica.tips
 -- http://www.jadito.us
 -- Twitter: justadayito
@@ -16,9 +16,7 @@
 -- may republish altered code as long as you include this copyright and 
 -- give due credit.
 --
--- Note: These queries were tested with Vertica 6.1.2-0 and for the most 
--- part should be backwards and forwards compatible. These queries should
--- be run from within vsql.
+-- Note: These queries should be run from within vsql.
 --
 -- THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF 
 -- ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED 
@@ -207,59 +205,6 @@ WHERE  qe.event_type = 'RESEGMENTED_MANY_ROWS'
        AND qr.request_type = 'QUERY' 
 ORDER  BY qr.start_timestamp;
 
--- Shows possible data skew in segmented projections; note: Workload
--- Analyzer should be run to obtain the most recent recommendations
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17426.htm
-SELECT /*+label(diag_workload_resegment)*/
-       tuning_description, 
-       tuning_cost 
-FROM   v_monitor.tuning_recommendations 
-WHERE  tuning_description LIKE 're-segment%'
-ORDER  BY tuning_description;
-
--- Shows projections that haven't been refreshed in the past 3 months 
--- or do not have a corresponding refresh
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13905.htm
-SELECT /*+label(diag_stale_projections)*/ 
-       p.projection_schema, 
-       p.projection_name, 
-       DATEDIFF(day, pr.refresh_start, SYSDATE()) AS days_last_refresh 
-FROM   v_catalog.projections p 
-       LEFT JOIN v_monitor.projection_refreshes pr 
-              ON pr.projection_id = p.projection_id 
-WHERE  DATEDIFF(month, pr.refresh_start, SYSDATE()) >= 3 
-        OR pr.projection_id IS NULL 
-ORDER  BY days_last_refresh DESC;
-
--- Shows projection columns that haven't been refreshed in the past month
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15576.htm
-SELECT /*+label(diag_stale_projection_columns)*/ 
-       projection_id, 
-       projection_name, 
-       projection_column_name, 
-       statistics_type, 
-       DATEDIFF(day, statistics_updated_timestamp, SYSDATE()) AS days_last_refresh 
-FROM   v_catalog.projection_columns 
-WHERE  DATEDIFF(month, statistics_updated_timestamp, SYSDATE()) >= 1
-ORDER  BY days_last_refresh DESC;
-
--- Shows projections which do not have full statistics; with tuning command;
--- only looking for statistics_type of NONE or ROWCOUNT. NONE means no statistics;
--- ROWCOUNT means created automatically from existing catalog metadata
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15574.htm
-SELECT /*+label(diag_unrefreshed_columns)*/ 
-       pc.projection_name, 
-       pc.table_name, 
-       pc.table_column_name, 
-       pc.statistics_type, 
-       E'SELECT /*+label(update_statistics)*/ ANALYZE_STATISTICS(\'' 
-         || pc.table_name || '.' || pc.table_column_name || E'\');' AS tuning_command
-FROM   v_catalog.projections p 
-       JOIN v_catalog.projection_columns pc 
-         ON pc.projection_id = p.projection_id 
-WHERE  p.has_statistics = 'f' 
-       AND pc.statistics_type IN ( 'NONE', 'ROWCOUNT' );
-
 -- Shows any load events that had rejected rows
 -- See also: https://my.vertica.com/docs/6.1.x/HTML/index.htm#12261.htm
 SELECT /*+label(diag_rejected_load_rows)*/
@@ -342,6 +287,103 @@ SELECT /*+label(diag_denied_resource_req)*/
        COUNT(*) 
 FROM   v_monitor.resource_rejection_details 
 GROUP  BY reason;
+
+-- Shows mergeout activity, durations, and volumes processed
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12278.htm
+SELECT /*+label(diag_mergeout_activity)*/ 
+       DATEDIFF(mi, ms.operation_start_timestamp, CASE WHEN me.operation_status = 'Running' THEN clock_timestamp() ELSE me.operation_start_timestamp END) AS min_to_complete,
+       CAST(CASE WHEN DATEDIFF(ss, ms.operation_start_timestamp, CASE WHEN me.operation_status = 'Running' THEN NULL::TIMESTAMP ELSE me.operation_start_timestamp END ) > 0 THEN CAST(ms.total_ros_used_bytes / ( 1024.0^2 ) AS DECIMAL(14,2))/DATEDIFF(ss,ms.operation_start_timestamp,CASE WHEN me.operation_status = 'Running' THEN clock_timestamp() ELSE me.operation_start_timestamp END ) ELSE 0 END AS DECIMAL(14,2)) AS mb_sec,
+       me.operation_status AS mergeout_status,
+       ms.operation_start_timestamp AS mergeout_start,
+       me.operation_start_timestamp AS mergeout_end,
+       ms.node_name,
+       ms.table_name,
+       ms.projection_name,
+       ms.total_ros_used_bytes AS ros_bytes,
+       CAST(ms.total_ros_used_bytes / ( 1024.0^2 ) AS DECIMAL(14,2)) AS ros_mb,
+       CAST(ms.total_ros_used_bytes / ( 1024.0^3 ) AS DECIMAL(14,2)) AS ros_gb,
+       ms.earliest_container_start_epoch AS start_epoch,
+       ms.latest_container_end_epoch AS end_epoch,
+       ms.ros_count
+FROM  (SELECT * 
+       FROM   v_monitor.tuple_mover_operations 
+       WHERE  operation_name = 'Mergeout' 
+              AND operation_status = 'Start' ) AS ms
+       LEFT JOIN (SELECT * 
+                  FROM   v_monitor.tuple_mover_operations 
+                  WHERE  operation_name = 'Mergeout' 
+                         AND operation_status IN ( 'Complete', 'Running' ) ) AS me
+               ON ms.earliest_container_start_epoch = me.earliest_container_start_epoch
+                  AND ms.latest_container_end_epoch = me.latest_container_end_epoch
+                  AND ms.ros_count = me.ros_count
+                  AND ms.total_ros_used_bytes = me.total_ros_used_bytes
+                  AND ms.session_id = me.session_id
+                  AND ms.node_name = me.node_name
+                  AND ms.table_name = me.table_name
+                  AND ms.table_schema = me.table_schema
+                  AND ms.projection_name = me.projection_name
+WHERE   ms.operation_start_timestamp BETWEEN clock_timestamp() - INTERVAL '1 DAY' AND clock_timestamp()
+        -- AND ms.table_schema = 'foo'
+        -- AND ms.table_name = 'bar' 
+ORDER   BY ms.projection_name, 
+           me.operation_status DESC;
+
+--*************************************************************************
+--  Projection Specific
+--*************************************************************************
+
+-- Shows projections that haven't been refreshed in the past 3 months 
+-- or do not have a corresponding refresh
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13905.htm
+SELECT /*+label(diag_stale_projections)*/ 
+       p.projection_schema, 
+       p.projection_name, 
+       DATEDIFF(day, pr.refresh_start, SYSDATE()) AS days_last_refresh 
+FROM   v_catalog.projections p 
+       LEFT JOIN v_monitor.projection_refreshes pr 
+              ON pr.projection_id = p.projection_id 
+WHERE  DATEDIFF(month, pr.refresh_start, SYSDATE()) >= 3 
+        OR pr.projection_id IS NULL 
+ORDER  BY days_last_refresh DESC;
+
+-- Shows projection columns that haven't been refreshed in the past month
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15576.htm
+SELECT /*+label(diag_stale_projection_columns)*/ 
+       projection_id, 
+       projection_name, 
+       projection_column_name, 
+       statistics_type, 
+       DATEDIFF(day, statistics_updated_timestamp, SYSDATE()) AS days_last_refresh 
+FROM   v_catalog.projection_columns 
+WHERE  DATEDIFF(month, statistics_updated_timestamp, SYSDATE()) >= 1
+ORDER  BY days_last_refresh DESC;
+
+-- Shows possible data skew in segmented projections; note: Workload
+-- Analyzer should be run to obtain the most recent recommendations
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17426.htm
+SELECT /*+label(diag_workload_resegment)*/
+       tuning_description, 
+       tuning_cost 
+FROM   v_monitor.tuning_recommendations 
+WHERE  tuning_description LIKE 're-segment%'
+ORDER  BY tuning_description;
+
+-- Shows projections which do not have full statistics; with tuning command;
+-- only looking for statistics_type of NONE or ROWCOUNT. NONE means no statistics;
+-- ROWCOUNT means created automatically from existing catalog metadata
+-- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15574.htm
+SELECT /*+label(diag_unrefreshed_columns)*/ 
+       pc.projection_name, 
+       pc.table_name, 
+       pc.table_column_name, 
+       pc.statistics_type, 
+       E'SELECT /*+label(update_statistics)*/ ANALYZE_STATISTICS(\'' 
+         || pc.table_name || '.' || pc.table_column_name || E'\');' AS tuning_command
+FROM   v_catalog.projections p 
+       JOIN v_catalog.projection_columns pc 
+         ON pc.projection_id = p.projection_id 
+WHERE  p.has_statistics = 'f' 
+       AND pc.statistics_type IN ( 'NONE', 'ROWCOUNT' );
 
 -- Shows projection last used timestamp to identify unused projections
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17579.htm

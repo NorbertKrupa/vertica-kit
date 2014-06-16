@@ -4,17 +4,12 @@ It's my goal to create a kit that contains essential queries and resources for a
 ## Vertica Diagnostic Queries
 The goal of these queries is to provide as much information as possible covering monitoring, diagnostics and performance tuning. This idea is heavily inspired by [Glenn Barry's](http://www.sqlskills.com/blogs/glenn/category/dmv-queries/) SQL Server diagnostic queries and [Ola Hallengren's](http://ola.hallengren.com/) SQL Server maintenance solution.
 
-The May 2014 release has the following changes:
-* Fixed schema for query_requests for query time distribution
-* Adds 6 queries
- * Nodes with less than recommended disk space available (40%)
- * Workload analyzer tuning rules
- * Tables without primary keys (help with optimizing joins)
- * Percentage of database that has been deleted
- * Denied resource requests (identify resource space and pool issues)
- * Projection last used timestamp (identify unused projections)
+The June 2014 release has the following changes:
+* Adds 1 queries
+ * Mergeout activity, mergeout durations, and mergeout volumes processed (submitted by Curtis)
+* Added Projection Specific section & realigned queries
 
-It contains 32 queries over 4 sections and covers the following:
+It contains 33 queries over 5 sections and covers the following:
 
 * Configuration Information (6)
  * Product Version
@@ -29,16 +24,12 @@ It contains 32 queries over 4 sections and covers the following:
  * Memory Information by Host
  * Compressed and Raw Estimate Data Space Usage by Schema
  * Disk Space Warning
-* Diagnostic Information (17)
+* Diagnostic Information (13)
  * Distribution of Query Request Times
  * Proactively Examining Query Events
  * Overview of Query Event Types
  * Spill to Disk Events
  * Resegmented Query Events
- * Data Skew in Segmented Projections
- * Outdated and Un-refreshed Projections
- * Outdated Column Statistics
- * Columns Requiring Statistics Updates
  * Load Events with Rejected Rows
  * Query Requests with Errors
  * Service Intervals and Last Run
@@ -46,6 +37,12 @@ It contains 32 queries over 4 sections and covers the following:
  * Possible Missing Primary Keys
  * Deleted Database Date
  * Denied Resource Requests
+ * Mergeout Activity
+* Projection Specific (5)
+ * Outdated Column Statistics
+ * Columns Requiring Statistics Updates
+ * Data Skew in Segmented Projections
+ * Outdated and Un-refreshed Projections
  * Unused Projections
 * Query Profiling Information (4)
  * Profiling Configuration
