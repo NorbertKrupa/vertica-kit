@@ -6,37 +6,43 @@ The goal of these queries is to provide as much information as possible covering
 
 The July 2014 release has the following changes:
 * Fixes calculation on nodes with less than recommended disk space
+* Fixes tables without primary keys to exclude system tables
 * Adds 3 diagnostic views
- * Configuration Information View
-  * License Information
-  * Database Size
-  * License Utilization
-  * Nodes in the Cluster
-  * Down Nodes in the Cluster
-  * K-Safety Level
-  * Number of Node Failures Before Automatic Shut Down
-  * Data Collector Status
-  * Changed Configuration Parameters
- * Diagnostic Information View
-  * Queries returned < 1 sec
-  * Queries returned between 1 and 2 sec
-  * Queries returned between 2 and 3 sec
-  * Queries returned between 3 and 4 sec
-  * Queries returned between 4 and 5 sec
-  * Queries returned > 5 sec
-  * Query Events
-  * Rejected Load Events
-  * Tables Without Primary Keys
-  * Percent of Database Deleted
-  * Resource Rejections
-  * Projections Without Refresh In Last 3 Months
-  * Projection Columns Without Refresh In Last 1 Month
-  * Projection Columns Without Full Statistics
- * Resource Information View
-  * Disk Space Utilization
-  * Memory Information
-  * Nodes Exceeding Used Space Limit
 
+### Diagnostic Views
+
+* Configuration Information View
+ * License Information
+ * Database Size
+ * License Utilization
+ * Nodes in the Cluster
+ * Down Nodes in the Cluster
+ * K-Safety Level
+ * Number of Node Failures Before Automatic Shut Down
+ * Data Collector Status
+ * Changed Configuration Parameters
+* Diagnostic Information View
+ * Queries returned < 1 sec
+ * Queries returned between 1 and 2 sec
+ * Queries returned between 2 and 3 sec
+ * Queries returned between 3 and 4 sec
+ * Queries returned between 4 and 5 sec
+ * Queries returned > 5 sec
+ * Query Events
+ * Rejected Load Events
+ * Tables Without Primary Keys
+ * Percent of Database Deleted
+ * Resource Rejections
+ * Projections Without Refresh In Last 3 Months
+ * Projection Columns Without Refresh In Last 1 Month
+ * Projection Columns Without Full Statistics
+* Resource Information View
+ * Disk Space Utilization
+ * Memory Information
+ * Nodes Exceeding Used Space Limit
+
+### Diagnostic Query 
+ 
 The core diagnostic query list contains 33 queries over 5 sections and covers the following:
 
 * Configuration Information (6)
