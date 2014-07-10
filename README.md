@@ -1,5 +1,5 @@
 # Vertica Kit
-It's my goal to create a kit that contains essential queries and resources for administering HP's Vertica. You can check out what I've done so far on [my blog](http://www.jadito.us).
+It's my goal to create a kit that contains essential queries and resources for administering HP's Vertica. You can check out what I've done so far at [vertica.tips](http://www.vertica.tips).
 
 ## Vertica Diagnostic Queries
 The goal of these queries is to provide as much information as possible covering monitoring, diagnostics and performance tuning. This idea is heavily inspired by [Glenn Barry's](http://www.sqlskills.com/blogs/glenn/category/dmv-queries/) SQL Server diagnostic queries and [Ola Hallengren's](http://ola.hallengren.com/) SQL Server maintenance solution.
