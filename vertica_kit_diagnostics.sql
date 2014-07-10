@@ -1,7 +1,7 @@
 -- Vertica Diagnostic Information Queries
--- June 2014
+-- July 2014
 --
--- Last Modified: June 15, 2014
+-- Last Modified: July 9, 2014
 -- http://www.vertica.tips
 -- http://www.jadito.us
 -- Twitter: justadayito
@@ -11,10 +11,10 @@
 --
 -- For more scripts and sample code, check out 
 --     http://jadito.us/vertica-kit
+--     http://vertica.tips
 --
--- You may alter this code for your own *non-commercial* purposes. You 
--- may republish altered code as long as you include this copyright and 
--- give due credit.
+-- You may alter this code for your own purposes. You may republish 
+-- altered code as long as you include this copyright and give due credit.
 --
 -- Note: These queries should be run from within vsql.
 --
@@ -114,12 +114,12 @@ ORDER  BY pj.used_compressed_gb DESC;
 
 -- Shows nodes that have less than the recommended disk space (40%) available for use
 -- http://goo.gl/I4kCmk
-SELECT /*+label()*/
+SELECT /*+label(diag_critical_space_usage)*/
        node_name, 
        storage_path, 
        disk_space_free_percent 
 FROM   v_monitor.disk_storage 
-WHERE  disk_space_free_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4 
+WHERE  disk_space_used_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4 
        AND storage_usage = 'DATA,TEMP';
 
 --*************************************************************************
@@ -270,6 +270,7 @@ FROM   v_catalog.tables t
        LEFT JOIN v_catalog.constraint_columns cc 
               ON cc.table_id = t.table_id 
 WHERE  cc.constraint_type <> 'p' 
+       AND t.is_system_table = 'f'
 ORDER  BY t.table_schema, 
           t.table_name; 
 
@@ -277,8 +278,8 @@ ORDER  BY t.table_schema,
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12704_1.htm
 SELECT /*+label(diag_database_deleted_data)*/ 
       (SELECT SUM(used_bytes) 
-        FROM   v_monitor.delete_vectors) / (SELECT SUM(ros_used_bytes) 
-                                            FROM   v_monitor.projection_storage) * 100 AS percent;
+       FROM   v_monitor.delete_vectors) / (SELECT SUM(ros_used_bytes) 
+                                           FROM   v_monitor.projection_storage) * 100 AS percent;
 
 -- Shows denied resource requests (useful for identifying resource space and pool issues)
 -- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15239_1.htm
