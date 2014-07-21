@@ -1,27 +1,31 @@
 -- Vertica Diagnostic Information Queries
 -- July 2014
 --
--- Last Modified: July 9, 2014
+-- Last Modified: July 20, 2014
 -- http://www.vertica.tips
 -- http://www.jadito.us
 -- Twitter: justadayito
 --
--- Copyright (C) 2014 Norbert Krupa
--- All rights reserved
+-- Written by Norbert Krupa
 --
 -- For more scripts and sample code, check out 
 --     http://jadito.us/vertica-kit
 --     http://vertica.tips
 --
--- You may alter this code for your own purposes. You may republish 
--- altered code as long as you include this copyright and give due credit.
+-- Vertica Kit is free: you can redistribute it and/or modify it under
+-- the terms of the GNU General Public License as published by the Free
+-- Software Foundation, either version 3 of the License, or (at your 
+-- option) any later version.
+--
+-- Vertica Kit is distributed in the hope that it will be useful, but
+-- WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-- General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with Vertica Kit.  If not, see <http://www.gnu.org/licenses/>.
 --
 -- Note: These queries should be run from within vsql.
---
--- THIS CODE AND INFORMATION ARE PROVIDED "AS IS" WITHOUT WARRANTY OF 
--- ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED 
--- TO THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
--- PARTICULAR PURPOSE. 
 
 --*************************************************************************
 --  Configuration Information
