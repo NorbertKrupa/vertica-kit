@@ -157,7 +157,7 @@ SELECT /*+label(diag_query_time_distribution)*/
              WHEN request_duration_ms > 5000 THEN 1 
              ELSE 0 
            END) AS greater_than_5 
-FROM   v_internal.query_requests;
+FROM   v_monitor.query_requests;
 
 -- Shows possible issues with planning of execution of a query; specifically 
 -- looking for event types such as GROUP_BY_SPILLED and JOIN_SPILLED
