@@ -25,5 +25,5 @@ UNION ALL
           CAST( ROUND( disk_space_used_mb / 1024, 2 ) AS FLOAT(3) ), 
           CAST( ROUND( ( disk_space_free_mb + disk_space_used_mb ) / 1024, 2 ) AS FLOAT(3) ) 
    FROM   v_monitor.disk_storage 
-   WHERE  disk_space_used_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4 
+   WHERE  disk_space_free_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4 
           AND storage_usage = 'DATA,TEMP');
