@@ -9,10 +9,10 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 ## Vertica Diagnostic Queries
 The goal of these queries is to provide as much information as possible covering monitoring, diagnostics and performance tuning. This idea is heavily inspired by [Glenn Barry's](http://www.sqlskills.com/blogs/glenn/category/dmv-queries/) SQL Server diagnostic queries and [Ola Hallengren's](http://ola.hallengren.com/) SQL Server maintenance solution.
 
-The July 2014 release has the following changes:
-* Fixes calculation on nodes with less than recommended disk space
-* Fixes tables without primary keys to exclude system tables
-* Adds 3 diagnostic views
+The January 2015 release has the following changes:
+* Updated documentation links to latest version
+* Adds diagnostic query
+ * User sessions which are open but may be inactive
 
 ### Diagnostic Views
 
@@ -48,7 +48,7 @@ The July 2014 release has the following changes:
 
 ### Diagnostic Query 
  
-The core diagnostic query list contains 33 queries over 5 sections and covers the following:
+The core diagnostic query list contains 34 queries over 5 sections and covers the following:
 
 * Configuration Information (6)
  * Product Version
@@ -63,7 +63,7 @@ The core diagnostic query list contains 33 queries over 5 sections and covers th
  * Memory Information by Host
  * Compressed and Raw Estimate Data Space Usage by Schema
  * Disk Space Warning
-* Diagnostic Information (13)
+* Diagnostic Information (14)
  * Distribution of Query Request Times
  * Proactively Examining Query Events
  * Overview of Query Event Types
@@ -77,6 +77,7 @@ The core diagnostic query list contains 33 queries over 5 sections and covers th
  * Deleted Database Date
  * Denied Resource Requests
  * Mergeout Activity
+ * Open sessions
 * Projection Specific (5)
  * Outdated Column Statistics
  * Columns Requiring Statistics Updates
@@ -95,3 +96,5 @@ Doug Harmon has his own [Vertica SQL Toolbelt](https://github.com/DougHarmon/v-s
 The unofficial [Vertica forums](http://www.vertica-forums.com) have some great people helping out the Vertica community.
 
 [vertica.tips](http://www.vertica.tips) is a blog with authors from the community sharing expert knowledge.
+
+[vertica.help](http://www.vertica.help) is a site for valuable materials, videos, news, and training.

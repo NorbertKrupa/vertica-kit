@@ -1,9 +1,9 @@
 -- Vertica Diagnostic Information Queries
--- July 2014
+-- January 2015
 --
--- Last Modified: July 20, 2014
+-- Last Modified: January 11, 2015
 -- http://www.vertica.tips
--- http://www.jadito.us
+-- http://www.vertica.help
 -- Twitter: justadayito
 --
 -- Written by Norbert Krupa
@@ -11,6 +11,7 @@
 -- For more scripts and sample code, check out 
 --     http://jadito.us/vertica-kit
 --     http://vertica.tips
+--     http://vertica.help
 --
 -- Vertica Kit is free: you can redistribute it and/or modify it under
 -- the terms of the GNU General Public License as published by the Free
@@ -35,24 +36,24 @@
 SELECT version();
 
 -- Your license and compliance status
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15460.htm
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15563.htm
+-- http://j.mp/vertica-view-license-status
+-- http://j.mp/vertica-get-compliance-status
 SELECT DISPLAY_LICENSE();
 SELECT GET_COMPLIANCE_STATUS();
 
 -- Is the Data Collector enabled (for monitoring)
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#16138.htm
+-- http://j.mp/vertica-retaining-monitoring-information
 SELECT GET_CONFIG_PARAMETER('EnableDataCollector');
 
 -- Configuration parameters that have been modified
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12772.htm
+-- http://j.mp/vertica-configuration-parameters
 SELECT /*+label(diag_changed_config_param)*/ 
        * 
 FROM   v_monitor.configuration_parameters 
 WHERE  current_value <> default_value; 
 
 -- Shows change history of configuration parameters
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17542.htm
+-- http://j.mp/vertica-configuration-changes
 SELECT /*+label(diag_config_param_history)*/ 
        * 
 FROM   v_monitor.configuration_changes 
@@ -60,7 +61,7 @@ ORDER  BY event_timestamp DESC;
 
 -- Shows current fault tolerance of the system by returning K-safety 
 -- level and number of node failures before automatic shut down
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12275.htm
+-- http://j.mp/vertica-v_monitor-system
 SELECT /*+label(diag_fault_tolerance)*/ 
        designed_fault_tolerance, 
        current_fault_tolerance 
@@ -71,7 +72,7 @@ FROM   v_monitor.system;
 --*************************************************************************
 
 -- Shows disk space utilization by host (see below for alternate methods)
--- http://wp.me/p3Qalh-fs
+-- http://wp.me/p4EqBZ-2O
 SELECT /*+label(diag_disk_space_utilization)*/ 
        host_name, 
        ( disk_space_free_mb / 1024 )  AS disk_space_free_gb, 
@@ -97,7 +98,7 @@ SELECT /*+label(diag_memory_info)*/
 FROM   v_monitor.host_resources;
 
 -- Shows compressed and raw estimate data space utilization by schema
--- http://wp.me/p3Qalh-jA
+-- http://wp.me/p4EqBZ-33
 SELECT /*+label(diag_schema_space_utilization)*/ 
        pj.anchor_table_schema, 
        pj.used_compressed_gb, 
@@ -131,7 +132,7 @@ WHERE  disk_space_used_mb / ( disk_space_used_mb + disk_space_free_mb ) <= 0.4
 --*************************************************************************
 
 -- Distribution of query request times (see below for identifying slow queries)
--- http://wp.me/p3Qalh-ir
+-- http://wp.me/p4EqBZ-2Q
 SELECT /*+label(diag_query_time_distribution)*/ 
        SUM(CASE 
              WHEN request_duration_ms <= 1000 THEN 1 
@@ -161,7 +162,7 @@ FROM   v_monitor.query_requests;
 
 -- Shows possible issues with planning of execution of a query; specifically 
 -- looking for event types such as GROUP_BY_SPILLED and JOIN_SPILLED
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#20263.htm
+-- http://j.mp/vertica-first-query-performance-steps
 SELECT /*+label(diag_query_events)*/ 
        event_timestamp, 
        session_id, 
@@ -172,7 +173,7 @@ FROM   v_monitor.query_events
 ORDER  BY event_timestamp DESC; 
 
 -- Shows overview of event types
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17580.htm
+-- http://j.mp/vertica-v_monitor-query_events
 SELECT /*+label(diag_query_event_types)*/
        event_type, 
        COUNT(*) 
@@ -182,7 +183,7 @@ ORDER  BY COUNT(*) DESC;
 
 -- Shows queries that spilled to disk during execution; the query
 -- should be optimized for a merge join or group by pipelined
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12525.htm
+-- http://j.mp/vertica-optimizing-query-performance
 SELECT /*+label(diag_query_event_types)*/
        DISTINCT qr.start_timestamp, 
                 qe.event_type, 
@@ -196,8 +197,8 @@ WHERE  qe.event_type IN ( 'GROUP_BY_SPILLED', 'JOIN_SPILLED' )
 ORDER  BY qr.start_timestamp; 
 
 -- Shows query events in which rows were resegmented during execution
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12174.htm
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10248.htm
+-- http://j.mp/vertica-designing-for-segmentation
+-- http://j.mp/vertica-avoiding-segmentation-during-joins
 SELECT /*+label(diag_query_events_resegment)*/ 
        DISTINCT qr.start_timestamp, 
                 REGEXP_REPLACE(qr.request, '[\r\t\f\n]', ' ') AS request 
@@ -210,7 +211,7 @@ WHERE  qe.event_type = 'RESEGMENTED_MANY_ROWS'
 ORDER  BY qr.start_timestamp;
 
 -- Shows any load events that had rejected rows
--- See also: https://my.vertica.com/docs/6.1.x/HTML/index.htm#12261.htm
+-- See also: http://j.mp/vertica-v_monitor-load_streams
 SELECT /*+label(diag_rejected_load_rows)*/
        le.time, 
        le.node_name, 
@@ -230,7 +231,7 @@ WHERE  le.rows_rejected <> 0
 ORDER  BY le.time DESC;
 
 -- Shows any query requests with errors (truncated request text)
--- http://wp.me/p3Qalh-iV
+-- http://wp.me/p4EqBZ-2U
 SELECT /*+label(diag_query_errors)*/
        qr.node_name, 
        qr.user_name, 
@@ -251,8 +252,8 @@ FROM   v_monitor.query_requests qr
             AND em.transaction_id = qr.transaction_id 
 ORDER  BY qr.start_timestamp DESC;
 
--- Shows the last run and interval for each service on each ndoe
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17588.htm
+-- Shows the last run and interval for each service on each node
+-- http://j.mp/vertica-v_monitor-system_services
 SELECT /*+label(diag_system_services)*/
        * 
 FROM   v_monitor.system_services 
@@ -260,13 +261,13 @@ ORDER  BY node_name,
           last_run_start;
 
 -- Shows Workload Analyzer tuning rules
--- http://www.vertica.com/2014/05/06/inside-the-secret-world-of-the-workload-analyzer/
+-- http://j.mp/vertica-secret-world-workload-analyzer
 SELECT /*+label(diag_wla_tuning_params)*/
        * 
 FROM   v_internal.vs_tuning_rule_parameters;
 
 -- Shows tables without primary keys
--- http://vertica.tips/2014/03/29/hash-join-operator/
+-- http://wp.me/p4EqBZ-1d
 SELECT /*+label(diag_tables_without_pk)*/
        DISTINCT t.table_schema, 
                 t.table_name 
@@ -279,14 +280,14 @@ ORDER  BY t.table_schema,
           t.table_name; 
 
 -- Shows percentage of database that has been deleted
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12704_1.htm
+-- http://j.mp/vertica-delete-update-query-considerations
 SELECT /*+label(diag_database_deleted_data)*/ 
       (SELECT SUM(used_bytes) 
        FROM   v_monitor.delete_vectors) / (SELECT SUM(ros_used_bytes) 
                                            FROM   v_monitor.projection_storage) * 100 AS percent;
 
 -- Shows denied resource requests (useful for identifying resource space and pool issues)
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15239_1.htm
+-- http://j.mp/vertica-clear-resource-rejections
 SELECT /*+label(diag_denied_resource_req)*/ 
        reason, 
        COUNT(*) 
@@ -294,7 +295,7 @@ FROM   v_monitor.resource_rejection_details
 GROUP  BY reason;
 
 -- Shows mergeout activity, durations, and volumes processed
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#12278.htm
+-- http://j.mp/vertica-v_monitor-tuple_mover_operations
 SELECT /*+label(diag_mergeout_activity)*/ 
        DATEDIFF(mi, ms.operation_start_timestamp, CASE WHEN me.operation_status = 'Running' THEN clock_timestamp() ELSE me.operation_start_timestamp END) AS min_to_complete,
        CAST(CASE WHEN DATEDIFF(ss, ms.operation_start_timestamp, CASE WHEN me.operation_status = 'Running' THEN NULL::TIMESTAMP ELSE me.operation_start_timestamp END ) > 0 THEN CAST(ms.total_ros_used_bytes / ( 1024.0^2 ) AS DECIMAL(14,2))/DATEDIFF(ss,ms.operation_start_timestamp,CASE WHEN me.operation_status = 'Running' THEN clock_timestamp() ELSE me.operation_start_timestamp END ) ELSE 0 END AS DECIMAL(14,2)) AS mb_sec,
@@ -333,13 +334,42 @@ WHERE   ms.operation_start_timestamp BETWEEN clock_timestamp() - INTERVAL '1 DAY
 ORDER   BY ms.projection_name, 
            me.operation_status DESC;
 
+-- Sessions that have not been closed and have had no activity for at least 
+-- 15 min. Use discretion to determine the session is no longer active (a 
+-- transaction which has been ended is typically committed)
+-- http://j.mp/vertica_managing_sessions
+SELECT /*+label(diag_open_sessions)*/ 
+       s.time AS session_start,
+       ts.time AS transaction_start,
+       s.user_name,
+       s.client_hostname,
+       ts.node_name, 
+       ts.session_id, 
+       ts.transaction_id, 
+       E'SELECT /*+label(close_session)*/ CLOSE_SESSION(\'' || s.session_id 
+         || E'\');' AS close_command
+       --, LEFT(REGEXP_REPLACE(TRIM(BOTH E'\'' FROM SUBSTRING(ts.description FROM 21)), '[\r\t\f\n]', ' '), 100) AS last_statement
+FROM   v_internal.dc_transaction_starts ts 
+       JOIN (SELECT time, 
+                    user_name, 
+                    client_hostname, 
+                    session_id, 
+                    node_name 
+             FROM   v_internal.dc_session_starts 
+             WHERE  NOT is_internal) s 
+           USING (node_name, session_id) 
+       LEFT JOIN v_internal.dc_transaction_ends te 
+           USING (node_name, session_id, transaction_id)
+WHERE  te.time IS NULL
+AND    ts.time < SYSDATE() - INTERVAL '15 minutes';
+
 --*************************************************************************
 --  Projection Specific
 --*************************************************************************
 
 -- Shows projections that haven't been refreshed in the past 3 months 
 -- or do not have a corresponding refresh
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13905.htm
+-- http://j.mp/vertica-refresh
 SELECT /*+label(diag_stale_projections)*/ 
        p.projection_schema, 
        p.projection_name, 
@@ -352,7 +382,7 @@ WHERE  DATEDIFF(month, pr.refresh_start, SYSDATE()) >= 3
 ORDER  BY days_last_refresh DESC;
 
 -- Shows projection columns that haven't been refreshed in the past month
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15576.htm
+-- http://j.mp/vertica-last-statistics-update
 SELECT /*+label(diag_stale_projection_columns)*/ 
        projection_id, 
        projection_name, 
@@ -365,7 +395,7 @@ ORDER  BY days_last_refresh DESC;
 
 -- Shows possible data skew in segmented projections; note: Workload
 -- Analyzer should be run to obtain the most recent recommendations
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17426.htm
+-- http://j.mp/vertica-wla-triggering-conditions
 SELECT /*+label(diag_workload_resegment)*/
        tuning_description, 
        tuning_cost 
@@ -376,7 +406,7 @@ ORDER  BY tuning_description;
 -- Shows projections which do not have full statistics; with tuning command;
 -- only looking for statistics_type of NONE or ROWCOUNT. NONE means no statistics;
 -- ROWCOUNT means created automatically from existing catalog metadata
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#15574.htm
+-- http://j.mp/vertica-reacting-to-stale-statistics
 SELECT /*+label(diag_unrefreshed_columns)*/ 
        pc.projection_name, 
        pc.table_name, 
@@ -391,7 +421,7 @@ WHERE  p.has_statistics = 'f'
        AND pc.statistics_type IN ( 'NONE', 'ROWCOUNT' );
 
 -- Shows projection last used timestamp to identify unused projections
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#17579.htm
+-- http://j.mp/vertica-v_monitor-projection_usage
 SELECT /*+label(diag_unused_projectiosn)*/ 
        projection_name, 
        MIN(query_start_timestamp) AS last_used_timestamp 
@@ -406,24 +436,24 @@ LIMIT  30;
 --*************************************************************************
 
 -- Examining actual time spent in query
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10300.htm
+-- http://j.mp/vertica-profiling-database-performance
 -- Profiling configuration: if any configs are enabled, and you're not 
 -- performing profiling, it may be using memory
--- To disable: https://my.vertica.com/docs/6.1.x/HTML/index.htm#14373.htm
+-- To disable: http://j.mp/vertica-disable-profiling
 SELECT SHOW_PROFILING_CONFIG();
 
 -- Clear previous profiling data
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10305.htm
+-- http://j.mp/vertica-functions-clear-profiling
 SELECT CLEAR_PROFILING('query');
 
 -- Session and global profiling should be enabled as they will be capped by data
 -- collector policies; execution engine profiling should be used sparsely and briefly
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#13914.htm
+-- http://j.mp/vertica-profiling-parameters
 SELECT SET_CONFIG_PARAMETER('GlobalQueryProfiling', 1);
 SELECT SET_CONFIG_PARAMETER('GlobalSessionProfiling', 1);
 
 -- Examine query_profiles; shows 50 longest running queries
--- https://my.vertica.com/docs/6.1.x/HTML/index.htm#10304.htm
+-- http://j.mp/vertica-view-profiling-data
 SELECT /*+label(diag_long_running_queries)*/ 
        LEFT(REGEXP_REPLACE(query, '[\r\t\f\n]', ' '), 100) AS query, 
        COUNT(*)                                            AS instances, 
@@ -431,4 +461,4 @@ SELECT /*+label(diag_long_running_queries)*/
 FROM   v_monitor.query_profiles 
 GROUP  BY query 
 ORDER  BY avg_query_duration_us DESC 
-LIMIT 50;
+LIMIT  50;
