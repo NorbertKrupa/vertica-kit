@@ -1,17 +1,15 @@
 -- Vertica Diagnostic Information Queries
--- January 2015
+-- April 2015
 --
--- Last Modified: January 11, 2015
+-- Last Modified: April 14, 2015
 -- http://www.vertica.tips
--- http://www.vertica.help
--- Twitter: justadayito
+-- Twitter: verticatips
 --
 -- Written by Norbert Krupa
 --
 -- For more scripts and sample code, check out 
 --     http://jadito.us/vertica-kit
 --     http://vertica.tips
---     http://vertica.help
 --
 -- Vertica Kit is free: you can redistribute it and/or modify it under
 -- the terms of the GNU General Public License as published by the Free
@@ -363,6 +361,19 @@ FROM   v_internal.dc_transaction_starts ts
 WHERE  te.time IS NULL
 AND    ts.time < SYSDATE() - INTERVAL '15 minutes';
 
+-- Shows cluster request distribution to identify potential load balancing issues
+-- http://j.mp/vertica-request-distribution
+SELECT /*+label(diag_request_distriution)*/ 
+       a.requests, 
+       ROUND((a.requests / b.total_requests) * 100, 2.0) AS percent
+FROM   (SELECT node_name, 
+               COUNT(*) AS requests 
+        FROM   v_monitor.query_requests 
+        GROUP  BY node_name) a 
+       CROSS JOIN (SELECT COUNT(*) AS total_requests 
+                   FROM   v_monitor.query_requests) b 
+ORDER  BY percent DESC;
+
 --*************************************************************************
 --  Projection Specific
 --*************************************************************************
@@ -421,15 +432,17 @@ WHERE  p.has_statistics = 'f'
        AND pc.statistics_type IN ( 'NONE', 'ROWCOUNT' );
 
 -- Shows projection last used timestamp to identify unused projections
--- http://j.mp/vertica-v_monitor-projection_usage
-SELECT /*+label(diag_unused_projectiosn)*/ 
-       projection_name, 
-       MIN(query_start_timestamp) AS last_used_timestamp 
-FROM   v_monitor.projection_usage 
-GROUP  BY projection_name, 
-          query_start_timestamp 
-ORDER  BY query_start_timestamp 
-LIMIT  30;
+-- http://j.mp/vertica-unused_projections
+SELECT /*+label(diag_unused_projections)*/
+       projection_basename, 
+       MAX(time) AS last_used 
+FROM   v_internal.dc_projections_used 
+WHERE  table_oid IN (SELECT table_id 
+                     FROM   v_catalog.tables 
+                     WHERE  NOT is_system_table) 
+GROUP  BY projection_basename 
+ORDER  BY last_used ASC 
+LIMIT  50;
 
 --*************************************************************************
 --  Query Profiling Information
