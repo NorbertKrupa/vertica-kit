@@ -9,10 +9,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 ## Vertica Diagnostic Queries
 The goal of these queries is to provide as much information as possible covering monitoring, diagnostics and performance tuning. This idea is heavily inspired by [Glenn Barry's](http://www.sqlskills.com/blogs/glenn/category/dmv-queries/) SQL Server diagnostic queries and [Ola Hallengren's](http://ola.hallengren.com/) SQL Server maintenance solution.
 
-The April 2015 release has the following changes:
-* Updated unused projection query to exclude system tables
-* Adds diagnostic query
- * Cluster query distribution to identify potential load balancing issues
+The June 2015 release has the following changes:
+* Updated Tables Without Primary Keys query to check for additional constraints as it may have reported incorrect information (hat tip to Allen Cook at Conclusive Analytics)
 
 ### Diagnostic Views
 

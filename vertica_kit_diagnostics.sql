@@ -266,14 +266,20 @@ FROM   v_internal.vs_tuning_rule_parameters;
 
 -- Shows tables without primary keys
 -- http://wp.me/p4EqBZ-1d
-SELECT /*+label(diag_tables_without_pk)*/
+SELECT /*+label(diag_tables_without_pk)*/ 
        DISTINCT t.table_schema, 
                 t.table_name 
 FROM   v_catalog.tables t 
-       LEFT JOIN v_catalog.constraint_columns cc 
+       LEFT JOIN (SELECT table_id, 
+                         MAX(CASE 
+                               WHEN constraint_type = 'p' THEN 1 
+                               ELSE 0 
+                             END) AS has_pk 
+                  FROM   v_catalog.constraint_columns 
+                  GROUP  BY table_id) cc 
               ON cc.table_id = t.table_id 
-WHERE  cc.constraint_type <> 'p' 
-       AND t.is_system_table = 'f'
+WHERE  cc.has_pk = 0 
+       AND t.is_system_table = 'f' 
 ORDER  BY t.table_schema, 
           t.table_name; 
 
